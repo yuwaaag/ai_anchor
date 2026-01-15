@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<title>PTN News AI Anchor</title>
+
+<style>
+html,body{
+margin:0;width:1920px;height:1080px;
+background:#000;color:white;
+font-family:Segoe UI;overflow:hidden;
+}
+.display-unit{
+position:absolute;left:80px;top:100px;
+width:880px;height:520px;
+border:4px solid #00f2ff;
+border-radius:15px;overflow:hidden;
+}
+#trendImg{width:100%;height:100%;object-fit:cover;}
+#trendTitle{
+position:absolute;bottom:0;width:100%;
+background:rgba(0,0,0,.8);
+padding:14px;font-size:34px;
+color:#00f2ff;
+}
+.analysis-box{
+position:absolute;left:80px;bottom:60px;
+width:850px;min-height:400px;
+background:rgba(0,10,30,.95);
+border-left:12px solid #1DA1F2;
+padding:30px;font-size:30px;
+line-height:1.5;
+}
+.anchor-container{
+position:absolute;right:0;bottom:0;
+width:950px;height:1080px;
+}
+#anchorVideo{width:100%;height:100%;object-fit:contain;}
+</style>
+</head>
+
+<body>
+
+<div class="display-unit">
+<img id="trendImg">
+<div id="trendTitle">PTN News</div>
+</div>
+
+<div class="analysis-box" id="analysisText">
+स्क्रीन पर क्लिक करें…
+</div>
+
+<div class="anchor-container">
+<video id="anchorVideo" muted loop playsinline>
+<source src="anchor_video.mp4" type="video/mp4">
+</video>
+</div>
+
+<script>
+const SHEET_ID="1rybhbksHooXt_n1X9xOhvE8ilVneK1V4wx_NHXVlfIo";
+const WORKER_URL="https://damp-mode-feb7.yuwaaag.workers.dev/";
+
+let topics=[],i=0;
+
+async function start(){
+const csv=await fetch(
+`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv`
+).then(r=>r.text());
+
+topics=csv.split("\n")
+.slice(1)
+.map(r=>r.replace(/"/g,"").trim())
+.filter(t=>t.length>5);
+
+next();
+}
+
+async function next(){
+const topic=topics[i];
+trendTitle.innerText=topic;
+analysisText.innerText="AI विश्लेषण तैयार हो रहा है…";
+
+trendImg.src=
+`https://image.pollinations.ai/prompt/news%20${encodeURIComponent(topic)}?width=880&height=520&nologo=true`;
+
+const res=await fetch(WORKER_URL,{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({topic})
+});
+
+const data=await res.json();
+speak(data.candidates[0].content.parts[0].text);
+}
+
+function speak(text){
+analysisText.innerText=text;
+speechSynthesis.cancel();
+
+const msg=new SpeechSynthesisUtterance(text);
+msg.lang="hi-IN";msg.rate=0.9;
+
+msg.onstart=()=>anchorVideo.play();
+msg.onend=()=>{
+anchorVideo.pause();
+i=(i+1)%topics.length;
+setTimeout(next,12000);
+};
+
+speechSynthesis.speak(msg);
+}
+
+onclick=start;
+</script>
+
+</body>
+</html>
